@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Control de Saldos</title>
+<meta name="description" content="Herramienta gratuita para controlar vigencia y saldo de autorizaciones de importación por cantidad. Educativa, sin conexión a ARCA.">
+<style>
+/* ============================================================
+   COLORES (tokens). Cambiá acá y cambia toda la página.
+   ============================================================ */
+:root{
+  --bg:#F6F4EF; --panel:#FFFFFF; --panel2:#F0EDE6; --ink:#0D1726; --mut:#5B6577; --line:#DDD8CE;
+  --accent:#C98A12; --ok:#11845F; --okbg:#E3F4EC; --warn:#A86A00; --warnbg:#FFF3D9; --bad:#C2372A; --badbg:#FDE7E4;
+  --info:#2E5DA8; --infobg:#E6EEFA;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1726; --panel:#13223A; --panel2:#0F1C30; --ink:#F4F1EA; --mut:#9AA8BC; --line:#2A3B57;
+    --accent:#F2B33D; --ok:#4FD1A5; --okbg:rgba(79,209,165,.12); --warn:#F2B33D; --warnbg:rgba(242,179,61,.12);
+    --bad:#FF7A6B; --badbg:rgba(255,122,107,.12); --info:#7FA8F0; --infobg:rgba(127,168,240,.12);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1726; --panel:#13223A; --panel2:#0F1C30; --ink:#F4F1EA; --mut:#9AA8BC; --line:#2A3B57;
+  --accent:#F2B33D; --ok:#4FD1A5; --okbg:rgba(79,209,165,.12); --warn:#F2B33D; --warnbg:rgba(242,179,61,.12);
+  --bad:#FF7A6B; --badbg:rgba(255,122,107,.12); --info:#7FA8F0; --infobg:rgba(127,168,240,.12);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Inter,Roboto,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:24px 16px 64px}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:8px}
+h1{font-size:30px;line-height:1.1;margin:0 0 6px;letter-spacing:-.02em}
+h2{font-size:19px;margin:0 0 14px}
+.sub{color:var(--mut);margin:0;max-width:640px}
+.aviso{background:var(--infobg);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:14px;margin:16px 0 22px}
+.aviso b{color:var(--info)}
+.grid{display:grid;grid-template-columns:1fr;gap:18px}
+.grid>*{min-width:0}
+@media(min-width:900px){.grid{grid-template-columns:1.05fr .95fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px}
+.card + .card{margin-top:0}
+label{display:block;font-size:13px;font-weight:600;color:var(--mut);margin-bottom:4px}
+input,select{width:100%;font:inherit;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+.row{display:grid;gap:12px;grid-template-columns:repeat(2,1fr);margin-bottom:12px}
+.row.three{grid-template-columns:repeat(3,1fr)}
+@media(max-width:560px){.row,.row.three{grid-template-columns:1fr}}
+button{font:inherit;font-weight:600;border-radius:10px;padding:10px 16px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);cursor:pointer}
+button.pri{background:var(--accent);border-color:var(--accent);color:#0D1726}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.link{background:none;border:0;padding:4px 6px;color:var(--mut);text-decoration:underline;font-weight:500}
+.btns{display:flex;gap:10px;flex-wrap:wrap}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);padding:8px 6px;border-bottom:1px solid var(--line)}
+td{padding:10px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tablewrap{overflow-x:auto}
+.estado{display:inline-block;font-size:12px;font-weight:700;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.e-ok{background:var(--okbg);color:var(--ok)} .e-warn{background:var(--warnbg);color:var(--warn)} .e-bad{background:var(--badbg);color:var(--bad)} .e-info{background:var(--infobg);color:var(--info)}
+.barra{height:8px;background:var(--panel2);border-radius:99px;overflow:hidden;margin-top:6px;border:1px solid var(--line)}
+.barra i{display:block;height:100%;background:var(--mut)}
+.resultado{margin-top:16px}
+.veredicto{border-radius:12px;padding:14px 16px;font-weight:700;font-size:18px;margin-bottom:12px;border:2px solid}
+.v-ok{background:var(--okbg);border-color:var(--ok);color:var(--ok)}
+.v-warn{background:var(--warnbg);border-color:var(--warn);color:var(--warn)}
+.v-bad{background:var(--badbg);border-color:var(--bad);color:var(--bad)}
+.regla{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;padding:10px 0;border-top:1px solid var(--line);font-size:14px}
+.regla .estado{align-self:start}
+.regla .msg{color:var(--ink)} .regla .como{color:var(--mut);font-size:13px}
+.cuenta{font-variant-numeric:tabular-nums;background:var(--panel2);border-radius:10px;padding:10px 12px;font-size:15px;margin-bottom:10px}
+.vacio{color:var(--mut);text-align:center;padding:22px 8px;font-size:14px}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
+.toast.on{opacity:1}
+.check{display:flex;gap:8px;align-items:flex-start;font-size:14px;margin:10px 0;color:var(--ink);font-weight:500}
+.check input{width:auto;margin-top:3px}
+footer{margin-top:28px;color:var(--mut);font-size:13px}
+details summary{cursor:pointer;font-weight:600}
+code{overflow-wrap:anywhere;background:var(--panel2);padding:1px 5px;border-radius:5px;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div>
+    <h1>Control de saldos de autorizaciones</h1>
+    <p class="sub">Registrá cuánto te autorizaron, cuánto ya usaste y simulá la próxima operación antes de oficializarla. <b>Vigente no significa disponible.</b></p>
+  </div>
+  <div class="btns">
+    <button id="btnEjemplo" type="button">Cargar ejemplo</button>
+    <button id="btnTema" type="button" aria-label="Cambiar tema claro/oscuro">◐ Tema</button>
+  </div>
+</header>
+
+<div class="aviso"><b>Herramienta educativa.</b> No consulta ARCA ni ningún sistema oficial: trabaja solo con los datos que cargás vos, y esos datos quedan guardados únicamente en este navegador. Verificá siempre con tu despachante y con la normativa vigente.</div>
+
+<div class="grid">
+
+  <!-- ========== COLUMNA 1: SIMULAR ========== -->
+  <section class="card" aria-labelledby="t-sim">
+    <h2 id="t-sim">1 · Simular nueva operación</h2>
+    <div class="row">
+      <div><label for="simAut">Autorización</label><select id="simAut"></select></div>
+      <div><label for="simFecha">Fecha prevista de oficialización</label><input id="simFecha" type="date"></div>
+    </div>
+    <div class="row three">
+      <div><label for="simCant">Cantidad</label><input id="simCant" type="text" inputmode="decimal" placeholder="Ej: 100"></div>
+      <div><label for="simUnidad">Unidad</label><input id="simUnidad" type="text" placeholder="Ej: unidades"></div>
+      <div><label for="simRef">Referencia</label><input id="simRef" type="text" placeholder="Ej: OP-003"></div>
+    </div>
+    <div class="btns"><button class="pri" id="btnSimular" type="button">Controlar</button></div>
+    <div class="resultado" id="resultado" aria-live="polite"></div>
+  </section>
+
+  <!-- ========== COLUMNA 2: AUTORIZACIONES ========== -->
+  <section class="card" aria-labelledby="t-aut">
+    <h2 id="t-aut">2 · Autorizaciones</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Código / ítem</th><th class="num">Autorizado</th><th class="num">Usado</th><th class="num">Saldo</th><th>Estado</th><th></th></tr></thead>
+      <tbody id="tbAut"></tbody>
+    </table></div>
+    <details style="margin-top:14px">
+      <summary>+ Agregar autorización</summary>
+      <div style="margin-top:12px">
+        <div class="row">
+          <div><label for="aCod">Código</label><input id="aCod" placeholder="Ej: AUT-0042"></div>
+          <div><label for="aItem">Ítem / descripción</label><input id="aItem" placeholder="Ej: Ítem 1 – bombas"></div>
+        </div>
+        <div class="row three">
+          <div><label for="aCant">Cantidad autorizada</label><input id="aCant" inputmode="decimal" placeholder="Ej: 500"></div>
+          <div><label for="aUni">Unidad</label><input id="aUni" placeholder="Ej: unidades"></div>
+          <div><label for="aVence">Vence</label><input id="aVence" type="date"></div>
+        </div>
+        <button class="pri" id="btnAddAut" type="button">Guardar autorización</button>
+      </div>
+    </details>
+  </section>
+</div>
+
+<!-- ========== MOVIMIENTOS ========== -->
+<section class="card" style="margin-top:18px" aria-labelledby="t-mov">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+    <h2 id="t-mov" style="margin:0">3 · Operaciones registradas</h2>
+    <div class="btns">
+      <input id="fileCsv" type="file" accept=".csv,text/csv" style="display:none" aria-label="Archivo CSV">
+      <button type="button" id="btnImport">Importar CSV</button>
+      <button type="button" id="btnExport">Exportar CSV</button>
+      <button type="button" class="link" id="btnBorrar">Borrar todo</button>
+    </div>
+  </div>
+  <div class="tablewrap" style="margin-top:12px"><table>
+    <thead><tr><th>Fecha</th><th>Autorización</th><th>Referencia</th><th class="num">Cantidad</th><th>Origen</th><th></th></tr></thead>
+    <tbody id="tbMov"></tbody>
+  </table></div>
+</section>
+
+<footer>
+  <p>Formato CSV aceptado (una sola tabla, la columna <code>tipo</code> indica la fila): <code>tipo,codigo,item,unidad,cantidad,fecha,referencia,fuente</code> — <code>tipo</code> = <code>autorizacion</code> (fecha = vencimiento) u <code>operacion</code>. Acepta números con coma decimal (1.234,5) o punto (1234.5).</p>
+  <p>Hecho por Mateo Golfieri · Lic. en Economía Empresarial · <b>@lic.mateogolfieri</b></p>
+</footer>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* ============================================================
+   1) ESTADO: todo lo que la herramienta "sabe" vive en este objeto.
+   ============================================================ */
+var estado = { autorizaciones: [], operaciones: [] };
+var CLAVE = "control-saldos-v1";
+
+/* ---------- Guardar y leer del navegador (con protección por si falla) ---------- */
+function guardar() {
+  try { localStorage.setItem(CLAVE, JSON.stringify(estado)); } catch (e) { /* sin almacenamiento: seguimos en memoria */ }
+}
+function leer() {
+  try {
+    var txt = localStorage.getItem(CLAVE);
+    if (txt) {
+      var datos = JSON.parse(txt);
+      if (datos && Array.isArray(datos.autorizaciones) && Array.isArray(datos.operaciones)) { estado = datos; }
+    }
+  } catch (e) { /* datos dañados o bloqueados: arrancamos vacío */ }
+}
+
+/* ============================================================
+   2) UTILIDADES
+   ============================================================ */
+function nuevoId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+/* Escapa texto para que nada de lo importado se interprete como HTML */
+function esc(t) {
+  return String(t == null ? "" : t).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+
+/* Convierte "1.234,5" o "1234.5" o "1,234.5" en número. Devuelve NaN si no puede. */
+function aNumero(texto) {
+  var s = String(texto == null ? "" : texto).trim().replace(/\s/g, "");
+  if (s === "") { return NaN; }
+  var tienePunto = s.indexOf(".") >= 0, tieneComa = s.indexOf(",") >= 0;
+  if (tienePunto && tieneComa) {
+    // El último separador es el decimal
+    if (s.lastIndexOf(",") > s.lastIndexOf(".")) { s = s.replace(/\./g, "").replace(",", "."); }
+    else { s = s.replace(/,/g, ""); }
+  } else if (tieneComa) {
+    s = s.replace(",", ".");
+  } else if (tienePunto && /^\d{1,3}(\.\d{3})+$/.test(s)) {
+    s = s.replace(/\./g, ""); // "1.500" = mil quinientos
+  }
+  var n = Number(s);
+  return isFinite(n) ? n : NaN;
+}
+function fmt(n) { return Number(n).toLocaleString("es-AR", { maximumFractionDigits: 3 }); }
+function normUnidad(u) { return String(u || "").trim().toLowerCase(); }
+function hoyISO() { var d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); }
+function fechaAR(iso) { if (!iso) { return "—"; } var p = iso.split("-"); return p[2] + "/" + p[1] + "/" + p[0]; }
+function diasEntre(desdeISO, hastaISO) { return Math.round((new Date(hastaISO) - new Date(desdeISO)) / 86400000); }
+
+function aviso(msg) {
+  var t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("on");
+  clearTimeout(aviso.timer);
+  aviso.timer = setTimeout(function () { t.classList.remove("on"); }, 2600);
+}
+
+/* ============================================================
+   3) CÁLCULOS: saldo = autorizado − suma de operaciones
+   ============================================================ */
+function usado(autId) {
+  var total = 0;
+  estado.operaciones.forEach(function (op) { if (op.autId === autId) { total += op.cantidad; } });
+  return total;
+}
+function buscarAut(id) {
+  for (var i = 0; i < estado.autorizaciones.length; i++) { if (estado.autorizaciones[i].id === id) { return estado.autorizaciones[i]; } }
+  return null;
+}
+function estadoAut(a) {
+  var saldo = a.autorizado - usado(a.id);
+  var hoy = hoyISO();
+  if (saldo < 0) { return { txt: "Excedida", cls: "e-bad" }; }
+  if (a.vence && a.vence < hoy) { return { txt: "Vencida", cls: "e-bad" }; }
+  if (saldo === 0) { return { txt: "Agotada", cls: "e-warn" }; }
+  if (a.vence && diasEntre(hoy, a.vence) <= 30) { return { txt: "Vence pronto", cls: "e-warn" }; }
+  return { txt: "Vigente con saldo", cls: "e-ok" };
+}
+
+/* ============================================================
+   4) REGLAS DE CONTROL
+   Cada regla devuelve: id, severidad (bloqueante | advertencia | info | ok),
+   mensaje y cómo resolverlo.
+   ============================================================ */
+function controlar(a, fecha, cantidad, unidad, ref) {
+  var r = [];
+  var saldo = a.autorizado - usado(a.id);
+
+  // R01 – cantidad válida
+  if (!(cantidad > 0)) {
+    r.push({ id: "R01", sev: "bloqueante", msg: "La cantidad no es un número mayor a cero.", como: "Escribí la cantidad, por ejemplo 100 o 1.250,5." });
+    return { reglas: r, saldo: saldo };
+  }
+  // R02 – vigencia a la fecha de oficialización
+  if (!fecha) {
+    r.push({ id: "R02", sev: "bloqueante", msg: "Falta la fecha prevista de oficialización.", como: "Cargá la fecha para poder controlar la vigencia." });
+  } else if (a.vence && fecha > a.vence) {
+    r.push({ id: "R02", sev: "bloqueante", msg: "La autorización vence el " + fechaAR(a.vence) + ", antes de la fecha prevista (" + fechaAR(fecha) + ").", como: "Adelantá la operación o gestioná una nueva autorización." });
+  } else {
+    r.push({ id: "R02", sev: "ok", msg: "Vigente a la fecha prevista" + (a.vence ? " (vence " + fechaAR(a.vence) + ")." : "."), como: "" });
+    if (a.vence && diasEntre(fecha, a.vence) <= 30) {
+      r.push({ id: "R06", sev: "info", msg: "Vence en " + diasEntre(fecha, a.vence) + " días después de esta operación.", como: "Planificá las próximas operaciones o la renovación." });
+    }
+  }
+  // R03 – misma unidad de medida
+  if (unidad && normUnidad(unidad) !== normUnidad(a.unidad)) {
+    r.push({ id: "R03", sev: "bloqueante", msg: "La operación está en \"" + unidad + "\" y la autorización en \"" + a.unidad + "\".", como: "Convertí la cantidad a la unidad autorizada antes de controlar. No se mezclan unidades." });
+  } else {
+    r.push({ id: "R03", sev: "ok", msg: "Unidad coincide (" + a.unidad + ").", como: "" });
+  }
+  // R04 – saldo suficiente
+  if (cantidad > saldo) {
+    r.push({ id: "R04", sev: "bloqueante", msg: "Saldo insuficiente: faltan " + fmt(cantidad - saldo) + " " + a.unidad + ".", como: "Reducí la operación a " + fmt(Math.max(saldo, 0)) + " o pedí la ampliación antes de avanzar." });
+  } else {
+    r.push({ id: "R04", sev: "ok", msg: "Saldo suficiente.", como: "" });
+    // R05 – saldo bajo después de la operación
+    var resto = saldo - cantidad;
+    if (a.autorizado > 0 && resto / a.autorizado < 0.1) {
+      r.push({ id: "R05", sev: "advertencia", msg: "Después de esta operación queda " + fmt(resto) + " (" + Math.round(resto / a.autorizado * 100) + "% de lo autorizado).", como: "Avisá al cliente o al responsable antes de comprometer otra operación." });
+    }
+  }
+  // R07 – referencia repetida (posible duplicado)
+  if (ref) {
+    var rep = estado.operaciones.some(function (op) { return op.autId === a.id && op.ref.toLowerCase() === ref.toLowerCase(); });
+    if (rep) { r.push({ id: "R07", sev: "advertencia", msg: "Ya existe una operación con la referencia \"" + ref + "\".", como: "Confirmá que no la estés cargando dos veces." }); }
+  }
+  return { reglas: r, saldo: saldo };
+}
+
+/* ============================================================
+   5) PANTALLA: dibujar tablas y resultado
+   ============================================================ */
+function dibujarSelect() {
+  var sel = document.getElementById("simAut");
+  var previo = sel.value;
+  if (estado.autorizaciones.length === 0) { sel.innerHTML = '<option value="">Primero cargá una autorización</option>'; return; }
+  sel.innerHTML = estado.autorizaciones.map(function (a) {
+    return '<option value="' + esc(a.id) + '">' + esc(a.codigo) + " · " + esc(a.item) + "</option>";
+  }).join("");
+  if (previo && buscarAut(previo)) { sel.value = previo; }
+  completarUnidad();
+}
+function completarUnidad() {
+  var a = buscarAut(document.getElementById("simAut").value);
+  var u = document.getElementById("simUnidad");
+  if (a && !u.dataset.tocado) { u.value = a.unidad; }
+}
+
+function dibujarAut() {
+  var tb = document.getElementById("tbAut");
+  if (estado.autorizaciones.length === 0) {
+    tb.innerHTML = '<tr><td colspan="6" class="vacio">Todavía no hay autorizaciones. Agregá una o tocá “Cargar ejemplo”.</td></tr>';
+    return;
+  }
+  tb.innerHTML = estado.autorizaciones.map(function (a) {
+    var u = usado(a.id), s = a.autorizado - u, e = estadoAut(a);
+    var pct = a.autorizado > 0 ? Math.min(100, Math.round(u / a.autorizado * 100)) : 0;
+    return "<tr><td><b>" + esc(a.codigo) + "</b><br><span style='color:var(--mut)'>" + esc(a.item) + " · vence " + fechaAR(a.vence) + "</span>" +
+      "<div class='barra' aria-hidden='true'><i style='width:" + pct + "%'></i></div></td>" +
+      "<td class='num'>" + fmt(a.autorizado) + "</td><td class='num'>" + fmt(u) + "</td>" +
+      "<td class='num'><b>" + fmt(s) + "</b><br><span style='color:var(--mut)'>" + esc(a.unidad) + "</span></td>" +
+      "<td><span class='estado " + e.cls + "'>" + e.txt + "</span></td>" +
+      "<td><button class='link' data-borrar-aut='" + esc(a.id) + "' aria-label='Eliminar " + esc(a.codigo) + "'>Eliminar</button></td></tr>";
+  }).join("");
+}
+
+function dibujarMov() {
+  var tb = document.getElementById("tbMov");
+  if (estado.operaciones.length === 0) {
+    tb.innerHTML = '<tr><td colspan="6" class="vacio">Sin operaciones registradas.</td></tr>';
+    return;
+  }
+  var lista = estado.operaciones.slice().sort(function (x, y) { return x.fecha < y.fecha ? 1 : -1; });
+  tb.innerHTML = lista.map(function (op) {
+    var a = buscarAut(op.autId);
+    return "<tr><td>" + fechaAR(op.fecha) + "</td><td>" + esc(a ? a.codigo : "—") + "</td><td>" + esc(op.ref || "—") + "</td>" +
+      "<td class='num'>" + fmt(op.cantidad) + " " + esc(a ? a.unidad : "") + "</td>" +
+      "<td style='color:var(--mut)'>" + esc(op.fuente || "manual") + "</td>" +
+      "<td><button class='link' data-borrar-op='" + esc(op.id) + "'>Eliminar</button></td></tr>";
+  }).join("");
+}
+
+function dibujarTodo() { dibujarSelect(); dibujarAut(); dibujarMov(); }
+
+var ultimoControl = null;
+
+function mostrarResultado(a, datos, cantidad, res) {
+  var bloq = res.reglas.filter(function (x) { return x.sev === "bloqueante"; }).length;
+  var adv = res.reglas.filter(function (x) { return x.sev === "advertencia"; }).length;
+  var v = bloq ? ["v-bad", "⛔ Bloqueado: no avanzar"] : adv ? ["v-warn", "⚠ Puede avanzar, revisando advertencias"] : ["v-ok", "✓ Puede avanzar"];
+  var icono = { bloqueante: ["e-bad", "Bloqueante"], advertencia: ["e-warn", "Advertencia"], info: ["e-info", "Info"], ok: ["e-ok", "OK"] };
+  var html = "<div class='veredicto " + v[0] + "'>" + v[1] + "</div>";
+  if (cantidad > 0) {
+    html += "<div class='cuenta'>Saldo: " + fmt(a.autorizado) + " − " + fmt(usado(a.id)) + " = <b>" + fmt(res.saldo) + "</b> " + esc(a.unidad) +
+      (res.saldo - cantidad >= 0 ? " &nbsp;→&nbsp; después de esta operación quedan <b>" + fmt(res.saldo - cantidad) + "</b>" : " &nbsp;→&nbsp; para esta operación faltan <b>" + fmt(cantidad - res.saldo) + "</b>") + "</div>";
+  }
+  html += res.reglas.map(function (x) {
+    var i = icono[x.sev];
+    return "<div class='regla'><span class='estado " + i[0] + "'>" + x.id + " · " + i[1] + "</span><div><div class='msg'>" + esc(x.msg) + "</div>" +
+      (x.como ? "<div class='como'>Cómo resolverlo: " + esc(x.como) + "</div>" : "") + "</div></div>";
+  }).join("");
+  if (!bloq) {
+    html += (adv ? "<label class='check'><input type='checkbox' id='chkAdv'> Revisé las advertencias y quiero registrar igual</label>" : "") +
+      "<button class='pri' id='btnRegistrar' type='button'" + (adv ? " disabled" : "") + ">Registrar operación</button>";
+  }
+  document.getElementById("resultado").innerHTML = html;
+  ultimoControl = bloq ? null : datos;
+}
+
+/* ============================================================
+   6) ACCIONES
+   ============================================================ */
+function simular() {
+  var a = buscarAut(document.getElementById("simAut").value);
+  if (!a) { aviso("Primero cargá una autorización."); return; }
+  var datos = {
+    autId: a.id,
+    fecha: document.getElementById("simFecha").value,
+    cantidad: aNumero(document.getElementById("simCant").value),
+    unidad: document.getElementById("simUnidad").value.trim(),
+    ref: document.getElementById("simRef").value.trim()
+  };
+  var res = controlar(a, datos.fecha, datos.cantidad, datos.unidad, datos.ref);
+  mostrarResultado(a, datos, datos.cantidad, res);
+}
+
+function registrar() {
+  if (!ultimoControl) { return; }
+  var a = buscarAut(ultimoControl.autId);
+  // Re-controlamos justo antes de guardar: los datos pudieron cambiar
+  var res = controlar(a, ultimoControl.fecha, ultimoControl.cantidad, ultimoControl.unidad, ultimoControl.ref);
+  if (res.reglas.some(function (x) { return x.sev === "bloqueante"; })) { aviso("Cambiaron los datos: volvé a controlar."); return; }
+  estado.operaciones.push({ id: nuevoId(), autId: a.id, fecha: ultimoControl.fecha, ref: ultimoControl.ref, cantidad: ultimoControl.cantidad, fuente: "manual" });
+  guardar(); dibujarTodo();
+  document.getElementById("resultado").innerHTML = "<div class='veredicto v-ok'>✓ Operación registrada. Nuevo saldo: " + fmt(a.autorizado - usado(a.id)) + " " + esc(a.unidad) + "</div>";
+  ultimoControl = null;
+  aviso("Operación guardada.");
+}
+
+function agregarAut() {
+  var cod = document.getElementById("aCod").value.trim();
+  var item = document.getElementById("aItem").value.trim();
+  var cant = aNumero(document.getElementById("aCant").value);
+  var uni = document.getElementById("aUni").value.trim();
+  var vence = document.getElementById("aVence").value;
+  var faltan = [];
+  if (!cod) { faltan.push("código"); }
+  if (!(cant > 0)) { faltan.push("cantidad autorizada mayor a cero"); }
+  if (!uni) { faltan.push("unidad"); }
+  if (!vence) { faltan.push("fecha de vencimiento"); }
+  if (faltan.length) { aviso("Falta: " + faltan.join(", ") + "."); return; }
+  estado.autorizaciones.push({ id: nuevoId(), codigo: cod, item: item || "—", unidad: uni, autorizado: cant, vence: vence, fuente: "manual" });
+  guardar(); dibujarTodo();
+  ["aCod", "aItem", "aCant", "aUni", "aVence"].forEach(function (id) { document.getElementById(id).value = ""; });
+  aviso("Autorización guardada.");
+}
+
+function cargarEjemplo() {
+  if ((estado.autorizaciones.length || estado.operaciones.length) && !confirm("Esto reemplaza tus datos actuales por el ejemplo. ¿Seguimos?")) { return; }
+  var hoy = new Date();
+  function masDias(n) { var d = new Date(hoy); d.setDate(d.getDate() + n); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); }
+  var a1 = { id: nuevoId(), codigo: "AUT-0042", item: "Ítem 1 – bombas centrífugas", unidad: "unidades", autorizado: 500, vence: masDias(120), fuente: "ejemplo" };
+  var a2 = { id: nuevoId(), codigo: "AUT-0057", item: "Ítem 3 – cable de acero", unidad: "kg", autorizado: 12000, vence: masDias(20), fuente: "ejemplo" };
+  estado = {
+    autorizaciones: [a1, a2],
+    operaciones: [
+      { id: nuevoId(), autId: a1.id, fecha: masDias(-60), ref: "OP-001", cantidad: 250, fuente: "ejemplo" },
+      { id: nuevoId(), autId: a1.id, fecha: masDias(-15), ref: "OP-002", cantidad: 170, fuente: "ejemplo" },
+      { id: nuevoId(), autId: a2.id, fecha: masDias(-30), ref: "OP-010", cantidad: 9500, fuente: "ejemplo" }
+    ]
+  };
+  guardar(); dibujarTodo();
+  document.getElementById("simAut").value = a1.id;
+  document.getElementById("simUnidad").dataset.tocado = "";
+  completarUnidad();
+  document.getElementById("simFecha").value = hoyISO();
+  document.getElementById("simCant").value = "100";
+  document.getElementById("simRef").value = "OP-003";
+  document.getElementById("resultado").innerHTML = "";
+  aviso("Ejemplo cargado: 500 autorizadas, 420 usadas. Tocá Controlar.");
+}
+
+/* ---------- CSV ---------- */
+function partirLineaCsv(linea, sep) {
+  var out = [], cur = "", q = false;
+  for (var i = 0; i < linea.length; i++) {
+    var c = linea[i];
+    if (q) {
+      if (c === '"' && linea[i + 1] === '"') { cur += '"'; i++; }
+      else if (c === '"') { q = false; }
+      else { cur += c; }
+    } else if (c === '"') { q = true; }
+    else if (c === sep) { out.push(cur); cur = ""; }
+    else { cur += c; }
+  }
+  out.push(cur);
+  return out.map(function (x) { return x.trim(); });
+}
+function fechaDesdeTexto(t) {
+  t = String(t || "").trim();
+  var m = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) { return t; }
+  m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) { return m[3] + "-" + ("0" + m[2]).slice(-2) + "-" + ("0" + m[1]).slice(-2); }
+  return "";
+}
+function importarCsv(texto) {
+  var lineas = texto.replace(/\r/g, "").split("\n").filter(function (l) { return l.trim() !== ""; });
+  if (lineas.length < 2) { aviso("El archivo está vacío."); return; }
+  var sep = lineas[0].indexOf(";") >= 0 && lineas[0].indexOf(",") < 0 ? ";" : ",";
+  var cab = partirLineaCsv(lineas[0], sep).map(function (h) { return h.toLowerCase(); });
+  function col(fila, nombre) { var i = cab.indexOf(nombre); return i >= 0 ? fila[i] : ""; }
+  if (cab.indexOf("tipo") < 0 || cab.indexOf("codigo") < 0 || cab.indexOf("cantidad") < 0) {
+    aviso("Faltan columnas: tipo, codigo y cantidad son obligatorias."); return;
+  }
+  var nAut = 0, nOp = 0, errores = [];
+  // Primero las autorizaciones, después las operaciones (para poder vincularlas)
+  ["autorizacion", "operacion"].forEach(function (tipoBuscado) {
+    for (var i = 1; i < lineas.length; i++) {
+      var f = partirLineaCsv(lineas[i], sep);
+      var tipo = col(f, "tipo").toLowerCase().replace("ó", "o");
+      if (tipo !== tipoBuscado) { continue; }
+      var cant = aNumero(col(f, "cantidad"));
+      var cod = col(f, "codigo");
+      if (!cod || !(cant > 0)) { errores.push("fila " + (i + 1)); continue; }
+      if (tipo === "autorizacion") {
+        estado.autorizaciones.push({ id: nuevoId(), codigo: cod, item: col(f, "item") || "—", unidad: col(f, "unidad") || "unidades", autorizado: cant, vence: fechaDesdeTexto(col(f, "fecha")), fuente: col(f, "fuente") || "CSV" });
+        nAut++;
+      } else {
+        var a = estado.autorizaciones.filter(function (x) { return x.codigo === cod; })[0];
+        if (!a) { errores.push("fila " + (i + 1) + " (no existe " + cod + ")"); continue; }
+        if (col(f, "unidad") && normUnidad(col(f, "unidad")) !== normUnidad(a.unidad)) { errores.push("fila " + (i + 1) + " (unidad distinta)"); continue; }
+        estado.operaciones.push({ id: nuevoId(), autId: a.id, fecha: fechaDesdeTexto(col(f, "fecha")), ref: col(f, "referencia"), cantidad: cant, fuente: col(f, "fuente") || "CSV" });
+        nOp++;
+      }
+    }
+  });
+  guardar(); dibujarTodo();
+  aviso("Importado: " + nAut + " autorizaciones y " + nOp + " operaciones." + (errores.length ? " Revisar: " + errores.slice(0, 4).join(", ") : ""));
+}
+function csvCampo(v) { var s = String(v == null ? "" : v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+function exportarCsv() {
+  var filas = [["tipo", "codigo", "item", "unidad", "cantidad", "fecha", "referencia", "fuente"]];
+  estado.autorizaciones.forEach(function (a) { filas.push(["autorizacion", a.codigo, a.item, a.unidad, a.autorizado, a.vence, "", a.fuente || ""]); });
+  estado.operaciones.forEach(function (op) { var a = buscarAut(op.autId); filas.push(["operacion", a ? a.codigo : "", "", a ? a.unidad : "", op.cantidad, op.fecha, op.ref, op.fuente || ""]); });
+  var texto = filas.map(function (f) { return f.map(csvCampo).join(","); }).join("\n");
+  var blob = new Blob(["﻿" + texto], { type: "text/csv;charset=utf-8" });
+  var link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "control-saldos-" + hoyISO() + ".csv";
+  document.body.appendChild(link); link.click(); link.remove();
+}
+
+/* ---------- Tema claro / oscuro ---------- */
+function cambiarTema() {
+  var raiz = document.documentElement;
+  var oscuroAhora = raiz.dataset.theme ? raiz.dataset.theme === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+  raiz.dataset.theme = oscuroAhora ? "light" : "dark";
+  try { localStorage.setItem("control-saldos-tema", raiz.dataset.theme); } catch (e) { /* sin almacenamiento */ }
+}
+function aplicarTemaGuardado() {
+  try { var t = localStorage.getItem("control-saldos-tema"); if (t) { document.documentElement.dataset.theme = t; } } catch (e) { /* nada */ }
+}
+
+/* ============================================================
+   7) CONECTAR BOTONES Y ARRANCAR
+   ============================================================ */
+function iniciar() {
+  aplicarTemaGuardado();
+  leer();
+  document.getElementById("simFecha").value = hoyISO();
+  document.getElementById("btnSimular").addEventListener("click", simular);
+  document.getElementById("btnAddAut").addEventListener("click", agregarAut);
+  document.getElementById("btnEjemplo").addEventListener("click", cargarEjemplo);
+  document.getElementById("btnTema").addEventListener("click", cambiarTema);
+  document.getElementById("btnExport").addEventListener("click", exportarCsv);
+  document.getElementById("btnImport").addEventListener("click", function () { document.getElementById("fileCsv").click(); });
+  document.getElementById("fileCsv").addEventListener("change", function (ev) {
+    var archivo = ev.target.files[0];
+    if (!archivo) { return; }
+    var lector = new FileReader();
+    lector.onload = function () { importarCsv(String(lector.result)); };
+    lector.readAsText(archivo);
+    ev.target.value = "";
+  });
+  document.getElementById("btnBorrar").addEventListener("click", function () {
+    if (!confirm("¿Borrar todas las autorizaciones y operaciones de este navegador?")) { return; }
+    estado = { autorizaciones: [], operaciones: [] }; guardar(); dibujarTodo();
+    document.getElementById("resultado").innerHTML = "";
+  });
+  document.getElementById("simAut").addEventListener("change", function () {
+    document.getElementById("simUnidad").dataset.tocado = ""; completarUnidad();
+  });
+  document.getElementById("simUnidad").addEventListener("input", function () { this.dataset.tocado = "1"; });
+
+  // Un solo "escuchador" para botones que se dibujan dinámicamente
+  document.addEventListener("click", function (ev) {
+    var t = ev.target;
+    if (t.id === "btnRegistrar") { registrar(); }
+    if (t.dataset && t.dataset.borrarOp) {
+      estado.operaciones = estado.operaciones.filter(function (o) { return o.id !== t.dataset.borrarOp; });
+      guardar(); dibujarTodo(); aviso("Operación eliminada.");
+    }
+    if (t.dataset && t.dataset.borrarAut) {
+      var n = estado.operaciones.filter(function (o) { return o.autId === t.dataset.borrarAut; }).length;
+      if (n && !confirm("Esta autorización tiene " + n + " operaciones. Se borran también. ¿Seguimos?")) { return; }
+      estado.autorizaciones = estado.autorizaciones.filter(function (a) { return a.id !== t.dataset.borrarAut; });
+      estado.operaciones = estado.operaciones.filter(function (o) { return o.autId !== t.dataset.borrarAut; });
+      guardar(); dibujarTodo(); aviso("Autorización eliminada.");
+    }
+  });
+  document.addEventListener("change", function (ev) {
+    if (ev.target.id === "chkAdv") { document.getElementById("btnRegistrar").disabled = !ev.target.checked; }
+  });
+
+  dibujarTodo();
+}
+iniciar();
+</script>
+</body>
+</html>

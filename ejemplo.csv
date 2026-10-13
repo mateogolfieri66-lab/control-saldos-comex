@@ -1,0 +1,4 @@
+tipo,codigo,item,unidad,cantidad,fecha,referencia,fuente
+autorizacion,AUT-0042,"Ítem 1 – bombas centrífugas",unidades,500,2027-02-10,,Ejemplo ficticio
+operacion,AUT-0042,,unidades,250,2026-08-14,OP-001,Ejemplo ficticio
+operacion,AUT-0042,,unidades,170,2026-09-28,OP-002,Ejemplo ficticio
